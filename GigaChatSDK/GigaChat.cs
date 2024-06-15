@@ -1,21 +1,13 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Net.Http;
-using System.Text;
 using System.Threading.Tasks;
-using System.Net.Http.Json;
 using System.Net.Http.Headers;
 using System.Net;
-using System.Net.Security;
-using System.Text.Json.Serialization;
-using System.Text.Json;
 using LikhodedDynamics.Sber.GigaChatSDK.Models;
-using static LikhodedDynamics.Sber.GigaChatSDK.Models.MessageQuery;
 using GigaChatSDK.Models;
-using System.Collections;
 using System.Text.RegularExpressions;
 using System.IO;
-using static System.Net.Mime.MediaTypeNames;
+using System.Text.Json;
 
 namespace LikhodedDynamics.Sber.GigaChatSDK
 {
@@ -44,7 +36,7 @@ namespace LikhodedDynamics.Sber.GigaChatSDK
 
         private string saveDirectory { get; set; } = Directory.GetCurrentDirectory();
         private long? ExpiresAt { get; set; }
-        public GigaChat(string secretKey, bool isCommercial, bool ignoreTLS, bool saveImage)
+        public GigaChat(string secretKey, bool isCommercial = false, bool ignoreTLS = true, bool saveImage = false)
         {
             this.secretKey = secretKey;
             this.isCommercial = isCommercial;

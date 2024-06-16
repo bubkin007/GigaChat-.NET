@@ -61,34 +61,25 @@ namespace LikhodedDynamics.Sber.GigaChatSDK
                         (sender, cert, chain, sslPolicyErrors) => { return true; };
                     clientHandler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => { return true; };
                 }
-                 
-                using (var client = new HttpClient(clientHandler))
+                using var client = new HttpClient(clientHandler);
+                HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, "https://ngw.devices.sberbank.ru:9443/api/v2/oauth");
+                var httpClientHandler = new HttpClientHandler();
+                request.Headers.Add("Authorization", "Bearer " + secretKey);
+                request.Headers.Add("RqUID", Guid.NewGuid().ToString());
+                request.Content = new StringContent("scope=GIGACHAT_API_PERS");
+                if (isCommercial == true)
                 {
-                   
-                    HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, "https://ngw.devices.sberbank.ru:9443/api/v2/oauth");
-                    var httpClientHandler = new HttpClientHandler();
-
-                    request.Headers.Add("Authorization", "Bearer " + secretKey);
-                    request.Headers.Add("RqUID", Guid.NewGuid().ToString());
-                    if (isCommercial == true)
-                    {
-                        request.Content = new StringContent("scope=GIGACHAT_API_CORP");
-                    }
-                    else
-                    {
-                        request.Content = new StringContent("scope=GIGACHAT_API_PERS");
-                    }
-                    request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/x-www-form-urlencoded");
-
-                    HttpResponseMessage response = await client.SendAsync(request);
-                    response.EnsureSuccessStatusCode();
-                    string responseBody = await response.Content.ReadAsStringAsync();
-                    Token = JsonSerializer.Deserialize<Token>(responseBody);
-                    ExpiresAt = Token.ExpiresAt;
-                    return Token;
+                    request.Content = new StringContent("scope=GIGACHAT_API_CORP");
                 }
+                request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/x-www-form-urlencoded");
+                HttpResponseMessage response = await client.SendAsync(request);
+                response.EnsureSuccessStatusCode();
+                string responseBody = await response.Content.ReadAsStringAsync();
+                Token = JsonSerializer.Deserialize<Token>(responseBody);
+                ExpiresAt = Token.ExpiresAt;
+                return Token;
             }
-            catch(Exception e)
+            catch (Exception e)
             {
                 Console.WriteLine(e);
                 return null;
@@ -101,14 +92,13 @@ namespace LikhodedDynamics.Sber.GigaChatSDK
         /// <param name="query">Запрос к модели в виде объекта запроса.</param>
         public async Task<Response?> CompletionsAsync(MessageQuery query)
         {
-            if(ExpiresAt < ((DateTimeOffset)DateTime.UtcNow).ToUnixTimeSeconds())
+            if (ExpiresAt < ((DateTimeOffset)DateTime.UtcNow).ToUnixTimeSeconds())
             {
                 await CreateTokenAsync();
             }
             if (Token != null)
             {
                 HttpClientHandler clientHandler = new HttpClientHandler();
-
                 string responseBody;
                 Response? DeserializedResponse;
 
@@ -122,12 +112,9 @@ namespace LikhodedDynamics.Sber.GigaChatSDK
                 using (var client = new HttpClient(clientHandler))
                 {
                     HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, URL + "chat/completions");
-
                     request.Headers.Add("Authorization", "Bearer " + Token.AccessToken);
-                    
                     request.Content = new StringContent(JsonSerializer.Serialize(query));
                     request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
-
                     HttpResponseMessage response = await client.SendAsync(request);
                     response.EnsureSuccessStatusCode();
                     responseBody = await response.Content.ReadAsStringAsync();
@@ -174,12 +161,9 @@ namespace LikhodedDynamics.Sber.GigaChatSDK
                 using (var client = new HttpClient(clientHandler))
                 {
                     HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, URL + "chat/completions");
-
                     request.Headers.Add("Authorization", "Bearer " + Token.AccessToken);
-
                     request.Content = new StringContent(JsonSerializer.Serialize(query));
                     request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
-
                     HttpResponseMessage response = await client.SendAsync(request);
                     response.EnsureSuccessStatusCode();
                     responseBody = await response.Content.ReadAsStringAsync();
@@ -224,17 +208,13 @@ namespace LikhodedDynamics.Sber.GigaChatSDK
                 using (var client = new HttpClient(clientHandler))
                 {
                     HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, URL + "embeddings");
-
                     request.Headers.Add("Authorization", "Bearer " + Token.AccessToken);
-
                     request.Content = new StringContent(JsonSerializer.Serialize(_request));
                     request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
-
                     HttpResponseMessage response = await client.SendAsync(request);
                     response.EnsureSuccessStatusCode();
                     responseBody = await response.Content.ReadAsStringAsync();
                     DeserializedResponse = JsonSerializer.Deserialize<EmbeddingResponse>(responseBody);
-                    
                     client.Dispose();
                 }
                 return DeserializedResponse;
@@ -261,21 +241,17 @@ namespace LikhodedDynamics.Sber.GigaChatSDK
                         (sender, cert, chain, sslPolicyErrors) => { return true; };
                     clientHandler.ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => { return true; };
                 }
-                using (var client = new HttpClient(clientHandler))
+                using var client = new HttpClient(clientHandler);
+                HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Get, URL + $"/files/{fileId}/content");
+                request.Headers.Add("Accept", "application/jpg");
+                request.Headers.Add("Authorization", "Bearer " + Token.AccessToken);
+                HttpResponseMessage response = await client.SendAsync(request);
+                response.EnsureSuccessStatusCode();
+                if (saveImage == true)
                 {
-                    HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Get, URL + $"/files/{fileId}/content");
-
-                    request.Headers.Add("Accept", "application/jpg");
-                    request.Headers.Add("Authorization", "Bearer " + Token.AccessToken);
-
-                    HttpResponseMessage response = await client.SendAsync(request);
-                    response.EnsureSuccessStatusCode();
-                    if (saveImage == true)
-                    {
-                        System.IO.File.WriteAllBytes(Path.Combine(saveDirectory, fileId + ".jpg"), await response.Content.ReadAsByteArrayAsync());
-                    }
-                    return await response.Content.ReadAsByteArrayAsync();
+                    System.IO.File.WriteAllBytes(Path.Combine(saveDirectory, fileId + ".jpg"), await response.Content.ReadAsByteArrayAsync());
                 }
+                return await response.Content.ReadAsByteArrayAsync();
             }
             else
             {
@@ -296,9 +272,7 @@ namespace LikhodedDynamics.Sber.GigaChatSDK
             if (Token != null)
             {
                 HttpClientHandler clientHandler = new HttpClientHandler();
-
                 Model? DeserializedModel = null;
-
                 if (ignoreTLS == true)
                 {
                     ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
@@ -309,16 +283,12 @@ namespace LikhodedDynamics.Sber.GigaChatSDK
 
                 using (var client = new HttpClient(clientHandler))
                 {
-
                     HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Get, URL + "models/");
-
                     request.Headers.Add("Authorization", "Bearer " + Token.AccessToken);
-
                     HttpResponseMessage response = await client.SendAsync(request);
                     response.EnsureSuccessStatusCode();
                     string responseBody = await response.Content.ReadAsStringAsync();
                     DeserializedModel = JsonSerializer.Deserialize<Model>(responseBody);
-
                     client.Dispose();
                 }
                 return DeserializedModel;
